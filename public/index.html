@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>数独 PK</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:#0f0f1a;color:#e0e0e0;min-height:100vh;
+  display:flex;justify-content:center;align-items:center;
+}
+#app{
+  width:100%;max-width:520px;min-height:100vh;
+  padding:20px;
+}
+/* Screens */
+.screen{display:none}
+.screen.active{display:block}
+
+/* Lobby */
+.lobby{text-align:center;padding-top:40px}
+.logo{
+  width:90px;height:90px;line-height:90px;margin:0 auto 20px;
+  background:linear-gradient(135deg,#1a1a2e,#16213e);
+  color:#e94560;border-radius:20px;font-size:36px;font-weight:900;
+}
+.title{font-size:36px;font-weight:900;color:#fff;margin-bottom:6px}
+.sub{font-size:14px;color:#888;margin-bottom:30px}
+
+.diff-row{display:flex;gap:10px;margin-bottom:30px}
+.diff-btn{
+  flex:1;padding:16px 8px;border-radius:14px;border:2px solid #2a2a3e;
+  background:#1a1a2e;color:#aaa;cursor:pointer;transition:all .2s;
+}
+.diff-btn.sel-easy{border-color:#27ae60;background:#0d2818;color:#27ae60}
+.diff-btn.sel-medium{border-color:#f39c12;background:#2d1a00;color:#f39c12}
+.diff-btn.sel-hard{border-color:#e74c3c;background:#2d0a0a;color:#e74c3c}
+.diff-name{font-size:16px;font-weight:700}
+.diff-desc{font-size:11px;opacity:.7;margin-top:4px}
+
+.btn{
+  display:block;width:100%;padding:16px;border:none;border-radius:28px;
+  font-size:18px;font-weight:700;cursor:pointer;transition:all .15s;
+  margin-bottom:12px;
+}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:linear-gradient(135deg,#4A90D9,#357ABD);color:#fff}
+.btn-success{background:linear-gradient(135deg,#27AE60,#219A52);color:#fff}
+.btn-outline{background:transparent;color:#4A90D9;border:2px solid #4A90D9}
+.btn:disabled{opacity:.4;pointer-events:none}
+
+.inline-row{display:flex;gap:10px;align-items:center}
+.join-inp{
+  flex:1;padding:14px 20px;border-radius:28px;border:2px solid #2a2a3e;
+  background:#1a1a2e;color:#fff;font-size:28px;text-align:center;
+  letter-spacing:10px;outline:none;
+}
+.join-inp:focus{border-color:#4A90D9}
+.join-inp::placeholder{letter-spacing:2px;font-size:14px;color:#555}
+
+/* Room */
+.room{text-align:center;padding-top:30px}
+.room-code-label{font-size:13px;color:#888}
+.room-code{font-size:64px;font-weight:900;color:#fff;letter-spacing:14px;margin:10px 0}
+.room-link{font-size:12px;color:#888;margin-bottom:20px;word-break:break-all}
+.players-row{display:flex;gap:16px;margin-bottom:30px}
+.player-card{
+  flex:1;padding:24px 12px;border-radius:14px;background:#1a1a2e;
+  border:2px solid #2a2a3e;transition:all .3s;
+}
+.player-card.joined{border-color:#27ae60;background:#0d2818}
+.player-avatar{
+  width:50px;height:50px;border-radius:50%;margin:0 auto 10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;
+}
+.player-avatar.host{background:#2a2a3e;color:#4A90D9}
+.player-avatar.guest{background:#2a2a3e;color:#27ae60}
+.player-avatar.waiting{background:#2a2a3e;color:#555}
+.player-name{font-size:14px;font-weight:600;color:#ccc}
+.player-role{font-size:11px;color:#888;margin-top:4px}
+.player-status{font-size:11px;margin-top:6px}
+.status-ready{color:#27ae60}.status-wait{color:#888}
+
+/* Game */
+.game-header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:16px;
+}
+.timer{font-size:34px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums}
+.game-actions{display:flex;gap:8px;align-items:center}
+.toggle-btn{
+  padding:6px 14px;border-radius:16px;border:none;font-size:13px;
+  font-weight:600;cursor:pointer;color:#888;background:#1a1a2e;
+  transition:all .15s;
+}
+.toggle-btn.active{background:#4A90D9;color:#fff}
+.undo-btn{
+  width:36px;height:36px;border-radius:50%;border:none;font-size:18px;
+  cursor:pointer;color:#fff;background:#1a1a2e;display:flex;
+  align-items:center;justify-content:center;transition:all .15s;
+}
+.undo-btn:active{transform:scale(.9)}
+.undo-btn:disabled{opacity:.3}
+.opp-status{font-size:12px;color:#888;padding:6px 12px;background:#1a1a2e;border-radius:12px}
+
+.board-wrap{display:flex;justify-content:center;margin-bottom:16px}
+.board{border-radius:8px;overflow:hidden;background:#fff;display:inline-block}
+.board-row{display:flex}
+.cell{
+  width:44px;height:44px;display:flex;align-items:center;justify-content:center;
+  border-right:1px solid #d0d7de;border-bottom:1px solid #d0d7de;
+  position:relative;transition:background .1s;cursor:pointer;user-select:none;
+}
+@media(min-width:500px){.cell{width:52px;height:52px}}
+.cell.br{border-right:2.5px solid #111}
+.cell.bb{border-bottom:2.5px solid #111}
+.cell.given{background:#f0f2f5}
+.cell.selected{background:#dbeafe !important;box-shadow:inset 0 0 0 2.5px #4A90D9}
+.cell.related{background:#f5f7fa}
+.cell.hl{background:#e0eaf7}
+.cell.conflict{background:#fde8e8 !important}
+.cell.conflict.selected{box-shadow:inset 0 0 0 2.5px #e74c3c}
+.cell-val{font-size:22px;font-weight:500;color:#4A90D9}
+.cell-val.given{color:#111;font-weight:700}
+.cell-val.conflict{color:#e74c3c;font-weight:700}
+
+.notes-grid{
+  width:100%;height:100%;display:grid;
+  grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;
+}
+.note-slot{
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;color:#7f8c8d;line-height:1;
+}
+
+.numpad{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:16px}
+.num-btn{
+  width:64px;height:56px;display:flex;align-items:center;justify-content:center;
+  background:#1a1a2e;color:#fff;font-size:28px;font-weight:700;
+  border-radius:10px;cursor:pointer;transition:all .12s;border:none;
+}
+@media(min-width:500px){.num-btn{width:74px;height:64px;font-size:32px}}
+.num-btn:active{background:#2a2a4e;transform:scale(.94)}
+.num-btn.erase{color:#e94560;font-size:22px}
+
+/* Result */
+.result{text-align:center;padding-top:50px}
+.result-icon{font-size:80px;margin-bottom:16px}
+.result-title{font-size:28px;font-weight:900;color:#fff;margin-bottom:24px}
+.result-score-num{font-size:72px;font-weight:900;color:#e94560}
+.result-score-unit{font-size:24px;color:#888;margin-left:4px}
+.result-rank{font-size:14px;color:#888;margin-top:8px}
+.stats{display:flex;margin:30px 0;gap:1px;background:#2a2a3e;border-radius:12px;overflow:hidden}
+.stat{flex:1;text-align:center;padding:20px;background:#1a1a2e}
+.stat-label{font-size:11px;color:#888;margin-bottom:6px}
+.stat-val{font-size:24px;font-weight:700;color:#fff}
+
+.error-msg{color:#e74c3c;font-size:14px;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Lobby Screen -->
+  <div class="screen active" id="lobby">
+    <div class="lobby">
+      <div class="logo">9×9</div>
+      <div class="title">数独 PK</div>
+      <div class="sub">邀请好友，实时对战</div>
+      <div class="diff-row" id="diffRow"></div>
+      <button class="btn btn-primary" id="createBtn">创建房间</button>
+      <div style="color:#888;margin:16px 0;font-size:13px">— 或 —</div>
+      <div class="inline-row">
+        <input class="join-inp" id="joinInp" type="text" placeholder="输入房间号" maxlength="6" inputmode="numeric">
+        <button class="btn btn-outline" id="joinBtn" style="width:auto;margin:0" disabled>加入</button>
+      </div>
+      <div class="error-msg" id="lobbyErr"></div>
+    </div>
+  </div>
+
+  <!-- Room Screen -->
+  <div class="screen" id="roomScr">
+    <div class="room">
+      <div class="room-code-label">房间号</div>
+      <div class="room-code" id="roomCodeDisp"></div>
+      <div class="room-link" id="roomLink"></div>
+      <div class="players-row" id="playersRow"></div>
+      <button class="btn btn-success" id="startBtn" style="display:none">开始游戏</button>
+      <div id="roomStatus" style="color:#888;font-size:14px"></div>
+      <button class="btn btn-outline" id="copyBtn" style="margin-top:16px">复制邀请链接</button>
+    </div>
+  </div>
+
+  <!-- Game Screen -->
+  <div class="screen" id="gameScr">
+    <div class="game-header">
+      <div class="timer" id="timer">00:00</div>
+      <div class="game-actions">
+        <button class="undo-btn" id="undoBtn" disabled>↩</button>
+        <button class="toggle-btn" id="noteToggle">数字</button>
+        <div class="opp-status" id="oppStatus">对手解题中...</div>
+      </div>
+    </div>
+    <div class="board-wrap" id="boardWrap"></div>
+    <div class="numpad" id="numpad"></div>
+    <button class="btn btn-success" id="submitBtn">提交答案</button>
+  </div>
+
+  <!-- Result Screen -->
+  <div class="screen" id="resultScr">
+    <div class="result">
+      <div class="result-icon" id="resIcon"></div>
+      <div class="result-title" id="resTitle"></div>
+      <div class="result-score-num" id="resScore"></div>
+      <div class="result-rank" id="resRank"></div>
+      <div class="stats" id="resStats"></div>
+      <button class="btn btn-primary" id="againBtn">再来一局</button>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ==================== SUDOKU ENGINE ====================
+function isValid(b,r,c,n){
+  for(let i=0;i<9;i++){if(b[r][i]===n||b[i][c]===n)return false}
+  const br=Math.floor(r/3)*3,bc=Math.floor(c/3)*3;
+  for(let i=br;i<br+3;i++)for(let j=bc;j<bc+3;j++)if(b[i][j]===n)return false;
+  return true;
+}
+function findConflicts(board){
+  const s=new Set();
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+    const v=board[r][c];if(v===0)continue;
+    board[r][c]=0;if(!isValid(board,r,c,v))s.add(`${r},${c}`);board[r][c]=v;
+  }
+  return s;
+}
+function clearRelatedNotes(notes,r,c,num){
+  for(let i=0;i<9;i++){
+    notes[r][i]=notes[r][i].filter(n=>n!==num);
+    notes[i][c]=notes[i][c].filter(n=>n!==num);
+  }
+  const br=Math.floor(r/3)*3,bc=Math.floor(c/3)*3;
+  for(let i=br;i<br+3;i++)for(let j=bc;j<bc+3;j++)notes[i][j]=notes[i][j].filter(n=>n!==num);
+}
+function buildDisplay(puzzle,board,selR,selC,notes){
+  const d=[],cf=findConflicts(board);
+  for(let r=0;r<9;r++){
+    const row=[];
+    for(let c=0;c<9;c++){
+      const v=board[r][c];
+      const given=puzzle[r][c]!==0;
+      const sel=r===selR&&c===selC;
+      const rel=r===selR||c===selC||(Math.floor(r/3)===Math.floor(selR/3)&&Math.floor(c/3)===Math.floor(selC/3));
+      const same=selR>=0&&v!==0&&v===board[selR]?.[selC];
+      const conflict=cf.has(`${r},${c}`);
+      const br=(c+1)%3===0&&c!==8;
+      const bb=(r+1)%3===0&&r!==8;
+      const cn=notes?notes[r]?.[c]||[]:[];
+      const nd=[0,0,0,0,0,0,0,0,0];
+      cn.forEach(n=>{if(n>=1&&n<=9)nd[n-1]=n;});
+      row.push({v,given,sel,rel,same,conflict,br,bb,notes:nd,hasNotes:nd.some(n=>n!==0)});
+    }
+    d.push(row);
+  }
+  return d;
+}
+function isBoardFull(board){
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++)if(board[r][c]===0)return false;
+  return true;
+}
+
+// ==================== GAME STATE ====================
+const state={
+  screen:'lobby',difficulty:'easy',
+  roomCode:'',role:'',
+  puzzle:[],userBoard:[],notes:[],displayBoard:[],history:[],
+  noteMode:false,
+  selR:-1,selC:-1,
+  timerSec:0,timerInt:null,
+  submitted:false,
+  opponentDone:false
+};
+
+// ==================== DOM ====================
+const $=id=>document.getElementById(id);
+const screens={lobby:$('lobby'),room:$('roomScr'),game:$('gameScr'),result:$('resultScr')};
+function showScreen(name){
+  Object.keys(screens).forEach(k=>screens[k].classList.remove('active'));
+  screens[name].classList.add('active');
+  state.screen=name;
+}
+
+// ==================== INIT ====================
+const socket=io();
+const diffCfg={easy:'简单',medium:'中等',hard:'困难'};
+
+// Difficulty buttons
+Object.entries(diffCfg).forEach(([k,v])=>{
+  const b=document.createElement('div');
+  b.className=`diff-btn${k===state.difficulty?' sel-'+k:''}`;
+  b.innerHTML=`<div class="diff-name">${v}</div>`;
+  b.onclick=()=>{
+    document.querySelectorAll('.diff-btn').forEach(e=>e.className='diff-btn');
+    b.className=`diff-btn sel-${k}`;
+    state.difficulty=k;
+  };
+  $('diffRow').appendChild(b);
+});
+
+// Join input
+$('joinInp').oninput=e=>{
+  const v=e.target.value.replace(/\D/g,'').slice(0,6);
+  e.target.value=v;
+  $('joinBtn').disabled=v.length!==6;
+};
+
+// ==================== BUTTONS ====================
+$('createBtn').onclick=()=>{socket.emit('create-room',{difficulty:state.difficulty});$('lobbyErr').textContent='';};
+
+$('joinBtn').onclick=()=>{
+  const code=$('joinInp').value.trim();
+  if(code.length===6){socket.emit('join-room',{roomCode:code});$('lobbyErr').textContent='';}
+};
+
+$('joinInp').onkeydown=e=>{if(e.key==='Enter')$('joinBtn').click();};
+
+$('startBtn').onclick=()=>socket.emit('start-game');
+$('submitBtn').onclick=()=>submitAnswer();
+$('againBtn').onclick=()=>{showScreen('lobby');};
+$('noteToggle').onclick=()=>{
+  state.noteMode=!state.noteMode;
+  $('noteToggle').textContent=state.noteMode?'备注':'数字';
+  $('noteToggle').classList.toggle('active',state.noteMode);
+};
+$('undoBtn').onclick=()=>undo();
+
+$('copyBtn').onclick=()=>{
+  const link=`${location.origin}${location.pathname}?r=${state.roomCode}`;
+  navigator.clipboard.writeText(link).then(()=>alert('链接已复制！发送给好友即可。'));
+};
+
+// ==================== SOCKET EVENTS ====================
+socket.on('room-created',data=>{
+  state.roomCode=data.roomCode;
+  state.role='creator';
+  $('roomCodeDisp').textContent=data.roomCode;
+  $('roomLink').textContent=`${location.origin}${location.pathname}?r=${data.roomCode}`;
+  renderPlayers(false);
+  $('startBtn').style.display='none';
+  $('roomStatus').textContent='等待对手加入...';
+  showScreen('room');
+});
+
+socket.on('join-error',data=>{$('lobbyErr').textContent=data.message;});
+
+socket.on('join-success',data=>{
+  state.roomCode=data.roomCode;
+  state.role='joiner';
+  $('roomCodeDisp').textContent=data.roomCode;
+  renderPlayers(true);
+  $('startBtn').style.display='none';
+  $('roomStatus').textContent='等待房主开始游戏...';
+  showScreen('room');
+});
+
+socket.on('opponent-joined',()=>{
+  renderPlayers(true);
+  if(state.role==='creator'){
+    $('startBtn').style.display='block';
+    $('roomStatus').textContent='对手已加入，可以开始！';
+  }
+});
+
+socket.on('game-start',data=>{
+  state.puzzle=data.puzzle.map(r=>[...r]);
+  state.userBoard=data.puzzle.map(r=>[...r]);
+  state.notes=Array(9).fill().map(()=>Array(9).fill().map(()=>[]));
+  state.history=[];
+  state.selR=-1;state.selC=-1;
+  state.submitted=false;state.opponentDone=false;
+  state.timerSec=0;
+  $('oppStatus').textContent='对手解题中...';
+  $('timer').textContent='00:00';
+  startTimer();
+  renderBoard();
+  showScreen('game');
+});
+
+socket.on('submit-result',data=>{
+  if(!data.correct){alert('答案有误！');return;}
+  state.submitted=true;
+  stopTimer();
+  showResult(data.score,data.rank,state.timerSec);
+});
+
+socket.on('opponent-finished',data=>{
+  state.opponentDone=true;
+  $('oppStatus').textContent='对手已完成！';
+});
+
+socket.on('game-over',data=>{
+  const me=data.players.find(p=>(state.role==='creator'&&p.role==='creator')||(state.role==='joiner'&&p.role==='joiner'));
+  if(me&&!state.submitted){
+    stopTimer();
+    state.submitted=true;
+    showResult(me.score||0,me.finished?1:2,me.time||state.timerSec);
+  }
+});
+
+socket.on('opponent-status',data=>{
+  if(data.finished){state.opponentDone=true;$('oppStatus').textContent='对手已完成！';}
+});
+
+// Poll opponent status every 3s
+setInterval(()=>{if(state.screen==='game'&&!state.opponentDone&&!state.submitted)socket.emit('check-opponent');},3000);
+
+// ==================== ROOM HELPERS ====================
+function renderPlayers(joined){
+  const hostLabel=state.role==='creator'?'你 (房主)':'房主';
+  const guestLabel=state.role==='joiner'?'你 (挑战者)':'挑战者';
+  $('playersRow').innerHTML=`
+    <div class="player-card joined">
+      <div class="player-avatar host">👤</div>
+      <div class="player-name">${hostLabel}</div>
+      <div class="player-role">房主</div>
+      <div class="player-status status-ready">已就位</div>
+    </div>
+    <div class="player-card ${joined?'joined':''}">
+      <div class="player-avatar ${joined?'guest':'waiting'}">${joined?'👤':'?'}</div>
+      <div class="player-name">${joined?guestLabel:'等待中...'}</div>
+      <div class="player-role">挑战者</div>
+      <div class="player-status ${joined?'status-ready':'status-wait'}">${joined?'已就位':'等待加入'}</div>
+    </div>`;
+}
+
+// ==================== TIMER ====================
+function startTimer(){
+  stopTimer();
+  state.timerSec=0;
+  state.timerInt=setInterval(()=>{
+    state.timerSec++;
+    const m=Math.floor(state.timerSec/60),s=state.timerSec%60;
+    $('timer').textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  },1000);
+}
+function stopTimer(){if(state.timerInt){clearInterval(state.timerInt);state.timerInt=null;}}
+
+// ==================== BOARD RENDER ====================
+function renderBoard(){
+  state.displayBoard=buildDisplay(state.puzzle,state.userBoard,state.selR,state.selC,state.notes);
+  const wrap=$('boardWrap');
+  let html='<div class="board">';
+  state.displayBoard.forEach((row,r)=>{
+    html+='<div class="board-row">';
+    row.forEach((cell,c)=>{
+      let cls=['cell'];
+      if(cell.given)cls.push('given');
+      if(cell.sel)cls.push('selected');
+      if(cell.rel&&!cell.sel)cls.push('related');
+      if(cell.same&&cell.v!==0&&!cell.conflict)cls.push('hl');
+      if(cell.conflict)cls.push('conflict');
+      if(cell.br)cls.push('br');
+      if(cell.bb)cls.push('bb');
+      html+=`<div class="${cls.join(' ')}" data-r="${r}" data-c="${c}">`;
+      if(cell.v!==0){
+        let vc=['cell-val'];
+        if(cell.given)vc.push('given');
+        if(cell.conflict)vc.push('conflict');
+        html+=`<span class="${vc.join(' ')}">${cell.v}</span>`;
+      }else if(cell.hasNotes){
+        html+='<div class="notes-grid">';
+        for(let i=0;i<9;i++){
+          html+=`<div class="note-slot">${cell.notes[i]||''}</div>`;
+        }
+        html+='</div>';
+      }
+      html+='</div>';
+    });
+    html+='</div>';
+  });
+  html+='</div>';
+  wrap.innerHTML=html;
+  // Click handlers
+  wrap.querySelectorAll('.cell').forEach(el=>{
+    el.onclick=()=>{
+      if(state.submitted)return;
+      const r=parseInt(el.dataset.r),c=parseInt(el.dataset.c);
+      if(state.puzzle[r][c]!==0)return;
+      state.selR=r;state.selC=c;
+      renderBoard();
+    };
+  });
+}
+
+// ==================== NUMPAD ====================
+function renderNumpad(){
+  let html='';
+  for(let n=1;n<=9;n++)html+=`<button class="num-btn" data-n="${n}">${n}</button>`;
+  html+='<button class="num-btn erase">✕</button>';
+  $('numpad').innerHTML=html;
+  $('numpad').querySelectorAll('.num-btn').forEach(b=>{
+    b.onclick=()=>{
+      if(state.submitted||state.selR<0||state.selC<0)return;
+      if(b.classList.contains('erase')){eraseCell();return;}
+      const n=parseInt(b.dataset.n);
+      saveSnapshot();
+      const r=state.selR,c=state.selC;
+      if(state.noteMode){
+        const cn=[...state.notes[r][c]];
+        const idx=cn.indexOf(n);
+        if(idx>=0)cn.splice(idx,1);else{cn.push(n);cn.sort((a,b)=>a-b);}
+        state.notes[r][c]=cn;
+      }else{
+        state.userBoard[r][c]=n;
+        state.notes[r][c]=[];
+        clearRelatedNotes(state.notes,r,c,n);
+      }
+      renderBoard();
+    };
+  });
+}
+
+// ==================== UNDO ====================
+function saveSnapshot(){
+  state.history.push({
+    userBoard:state.userBoard.map(r=>[...r]),
+    notes:state.notes.map(r=>r.map(c=>[...c])),
+  });
+  if(state.history.length>200)state.history.shift();
+  $('undoBtn').disabled=false;
+}
+function undo(){
+  if(state.history.length===0||state.submitted)return;
+  const last=state.history.pop();
+  state.userBoard=last.userBoard;
+  state.notes=last.notes;
+  $('undoBtn').disabled=state.history.length===0;
+  renderBoard();
+}
+function eraseCell(){
+  if(state.submitted||state.selR<0||state.selC<0)return;
+  if(state.puzzle[state.selR][state.selC]!==0)return;
+  saveSnapshot();
+  state.userBoard[state.selR][state.selC]=0;
+  state.notes[state.selR][state.selC]=[];
+  renderBoard();
+}
+
+// ==================== SUBMIT ====================
+function submitAnswer(){
+  if(state.submitted)return;
+  if(!isBoardFull(state.userBoard)){
+    if(!confirm('还有空格子没填，确定要提交吗？'))return;
+  }
+  state.submitted=true;
+  stopTimer();
+  socket.emit('submit-answer',{
+    board:state.userBoard,
+    time:state.timerSec,
+  });
+}
+
+// ==================== RESULT ====================
+function showResult(score,rank,time){
+  const m=Math.floor(time/60),s=time%60;
+  $('resIcon').textContent=rank===1?'🏆':'👍';
+  $('resTitle').textContent=rank===1?'这局你赢了！':'继续加油！';
+  $('resScore').innerHTML=`+${score}<span class="result-score-unit">分</span>`;
+  $('resRank').textContent=`第 ${rank} 名完成`;
+  $('resStats').innerHTML=`
+    <div class="stat"><div class="stat-label">用时</div><div class="stat-val">${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</div></div>
+    <div class="stat"><div class="stat-label">排名</div><div class="stat-val">第 ${rank} 名</div></div>
+    <div class="stat"><div class="stat-label">得分</div><div class="stat-val" style="color:#e94560">+${score}</div></div>`;
+  showScreen('result');
+}
+
+// ==================== URL JOIN ====================
+const params=new URLSearchParams(location.search);
+if(params.has('r')){
+  $('joinInp').value=params.get('r');
+  $('joinBtn').disabled=false;
+}
+
+// Init numpad
+renderNumpad();
+</script>
+</body>
+</html>
