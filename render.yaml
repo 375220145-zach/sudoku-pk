@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: sudoku-pk
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
